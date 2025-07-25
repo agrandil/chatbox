@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbox Koceng</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000; /* Warna latar belakang diubah menjadi hitam */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%; /* Lebar penuh pada layar kecil */
+            max-width: 600px; /* Batasi lebar pada layar besar */
+            height: 90vh; /* Ambil 90% tinggi viewport */
+            max-height: 800px; /* Batasi tinggi maksimum */
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background-color: #e5e7eb; /* Light grey background for messages */
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .message-bubble {
+            max-width: 80%; /* Pesan tidak akan terlalu lebar */
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            word-wrap: break-word;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        .message-bubble.sent {
+            background-color: #3b82f6; /* Blue for sent messages */
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.25rem; /* Sharper corner for sent */
+        }
+        .message-bubble.received {
+            background-color: #d1d5db; /* Light grey for received messages */
+            color: #1f2937;
+            align-self: flex-start;
+            border-bottom-left-radius: 0.25rem; /* Sharper corner for received */
+        }
+        .message-info {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+        .message-info.sent {
+            text-align: right;
+        }
+        .message-info.received {
+            text-align: left;
+        }
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%; /* Lebar penuh pada layar kecil */
+            max-width: 400px; /* Batasi lebar pada layar besar */
+            padding: 2rem;
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p class="text-gray-700">Memuat...</p>
+    </div>
+
+    <!-- Login Container -->
+    <div id="login-screen" class="login-container">
+        <!-- Header baru untuk halaman login -->
+        <h1 class="text-3xl font-bold mb-8 text-blue-600">Chatbox Koceng</h1>
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">Login Chatbox Koceng</h2>
+        <div class="w-full mb-4">
+            <label for="name-select" class="block text-gray-700 text-sm font-bold mb-2">Pilih Nama Anda:</label>
+            <select id="name-select" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option value="BADRUL">BADRUL</option>
+                <option value="CIMOL">CIMOL</option>
+                <option value="MOCHI">MOCHI</option>
+                <option value="OCHI">OCHI</option>
+            </select>
+        </div>
+        <div class="w-full mb-4">
+            <label for="password-input" class="block text-gray-700 text-sm font-bold mb-2">Password:</label>
+            <input type="password" id="password-input" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Masukkan password Anda">
+        </div>
+        <button id="login-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+            Masuk
+        </button>
+        <p id="login-error" class="text-red-500 text-sm mt-4 hidden">Password salah. Coba lagi.</p>
+    </div>
+
+    <!-- Chat Container -->
+    <div id="chat-screen" class="chat-container hidden">
+        <div class="bg-blue-600 text-white p-4 rounded-t-lg flex justify-between items-center">
+            <h1 class="text-xl font-bold">Chatbox Koceng</h1>
+            <span id="current-user-name-display" class="text-sm bg-blue-700 px-3 py-1 rounded-full">Nama: Memuat...</span>
+        </div>
+        <div id="messages-container" class="messages">
+            <!-- Pesan akan dimuat di sini -->
+        </div>
+        <div class="p-4 bg-gray-100 border-t border-gray-200 flex items-center gap-3 rounded-b-lg">
+            <input type="text" id="message-input" class="flex-grow shadow appearance-none border rounded-lg py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Ketik pesan Anda...">
+            <button id="send-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                Kirim
+            </button>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"; 
+
+        // Global variables for Firebase config and app ID
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let db;
+        let auth; 
+        let currentUserId = null; 
+        let currentUserName = null; 
+
+        // UI Elements
+        const loginScreen = document.getElementById('login-screen');
+        const chatScreen = document.getElementById('chat-screen');
+        const nameSelect = document.getElementById('name-select');
+        const passwordInput = document.getElementById('password-input');
+        const loginButton = document.getElementById('login-button');
+        const loginError = document.getElementById('login-error');
+        const messagesContainer = document.getElementById('messages-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const currentUserNameDisplay = document.getElementById('current-user-name-display');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        // Hardcoded password for this demo (NOT SECURE FOR PRODUCTION)
+        const CHAT_PASSWORD = "112233";
+
+        /**
+         * Menampilkan atau menyembunyikan overlay loading.
+         * @param {boolean} show - True untuk menampilkan, false untuk menyembunyikan.
+         */
+        function showLoading(show) {
+            if (show) {
+                loadingOverlay.classList.remove('hidden');
+            } else {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Menginisialisasi Firebase.
+         */
+        async function initializeFirebase() {
+            showLoading(true);
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app); 
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                currentUserId = auth.currentUser.uid;
+                console.log("Firebase initialized. Current Auth UID:", currentUserId);
+
+                showLoading(false);
+                loginScreen.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Kesalahan saat menginisialisasi Firebase:", error);
+                showLoading(false);
+            }
+        }
+
+        /**
+         * Menangani proses login.
+         */
+        loginButton.addEventListener('click', () => {
+            const enteredPassword = passwordInput.value;
+            const selectedName = nameSelect.value;
+
+            if (enteredPassword === CHAT_PASSWORD) {
+                loginError.classList.add('hidden');
+                currentUserName = selectedName; 
+                currentUserNameDisplay.textContent = `Nama: ${currentUserName}`; 
+
+                loginScreen.classList.add('hidden');
+                chatScreen.classList.remove('hidden');
+                messageInput.focus(); 
+                setupMessageListener(); 
+            } else {
+                loginError.classList.remove('hidden');
+                passwordInput.value = ''; 
+            }
+        });
+
+        // Izinkan login dengan menekan Enter di input password
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                loginButton.click();
+            }
+        });
+
+        /**
+         * Menyiapkan listener untuk pesan dari Firestore.
+         */
+        function setupMessageListener() {
+            if (!db || !currentUserId) { 
+                console.warn("Firestore belum siap atau pengguna belum terautentikasi (latar belakang).");
+                return;
+            }
+
+            // Path koleksi untuk data publik
+            const messagesRef = collection(db, `artifacts/${appId}/public/data/chat_messages`);
+            const q = query(messagesRef, orderBy('timestamp', 'asc')); 
+
+            onSnapshot(q, (snapshot) => {
+                messagesContainer.innerHTML = ''; 
+                snapshot.forEach((doc) => {
+                    const message = doc.data();
+                    displayMessage(message);
+                });
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, (error) => {
+                console.error("Kesalahan saat mengambil pesan:", error);
+            });
+        }
+
+        /**
+         * Menampilkan pesan di UI chatbox.
+         * @param {object} message - Objek pesan dari Firestore.
+         */
+        function displayMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message-bubble');
+
+            const isSentByCurrentUser = message.senderName === currentUserName;
+            messageElement.classList.add(isSentByCurrentUser ? 'sent' : 'received');
+
+            const date = message.timestamp ? new Date(message.timestamp.toDate()) : new Date();
+            const timeString = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            const dateString = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+
+            messageElement.innerHTML = `
+                <p>${message.text}</p>
+                <div class="message-info ${isSentByCurrentUser ? 'sent' : 'received'}">
+                    ${message.senderName} - ${dateString}, ${timeString}
+                </div>
+            `;
+            messagesContainer.appendChild(messageElement);
+        }
+
+        /**
+         * Mengirim pesan ke Firestore.
+         */
+        async function sendMessage() {
+            const messageText = messageInput.value.trim();
+            if (messageText === '' || !currentUserName || !currentUserId) {
+                return;
+            }
+
+            try {
+                const messagesRef = collection(db, `artifacts/${appId}/public/data/chat_messages`);
+                await addDoc(messagesRef, {
+                    text: messageText,
+                    senderName: currentUserName, 
+                    senderAuthId: currentUserId, 
+                    timestamp: serverTimestamp() 
+                });
+                messageInput.value = ''; 
+                messagesContainer.scrollTop = messagesContainer.scrollHeight; 
+            } catch (error) {
+                console.error("Kesalahan saat mengirim pesan:", error);
+            }
+        }
+
+        // Event listener untuk tombol kirim
+        sendButton.addEventListener('click', sendMessage);
+
+        // Event listener untuk menekan Enter di input pesan
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Inisialisasi Firebase saat halaman dimuat
+        window.onload = initializeFirebase;
+    </script>
+</body>
+</html>
